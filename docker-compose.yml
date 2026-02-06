@@ -1,18 +1,20 @@
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: postgres-radius
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-radius}
-      POSTGRES_USER: ${POSTGRES_USER:-radius}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-RadiusSecurePass123!}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-America/Sao_Paulo}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
       - radius-network
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radius}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,28 +23,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.freeradius
-    expose:
-      - "1812/udp"
-      - "1813/udp"
-    networks:
-      - radius-network
+    container_name: freeradius
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
-    environment:
-      - TZ=${TZ:-America/Sao_Paulo}
+    networks:
+      - radius-network
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    healthcheck:
+      test: ["CMD", "radiusd", "-C"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   adminer:
     image: adminer:latest
-    expose:
-      - "8080"
-    networks:
-      - radius-network
+    container_name: adminer-radius
     restart: unless-stopped
     environment:
       ADMINER_DEFAULT_SERVER: postgres
       ADMINER_DESIGN: nette
+    networks:
+      - radius-network
+    ports:
+      - "8080:8080"
 
 networks:
   radius-network:
