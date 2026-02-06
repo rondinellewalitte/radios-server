@@ -1,94 +1,49 @@
 server default {
+
     listen {
         type = auth
         ipaddr = *
         port = 1812
-        limit {
-            max_connections = 16
-            lifetime = 0
-            idle_timeout = 30
-        }
     }
-    
+
     listen {
         type = acct
         ipaddr = *
         port = 1813
-        limit {
-            max_connections = 16
-            lifetime = 0
-            idle_timeout = 30
-        }
     }
-    
+
     authorize {
         filter_username
         preprocess
-        
-        # Autenticação via SQL
+
         sql
-        
-        # Se você usar grupos
-        if (ok || updated) {
-            update control {
-                &SQL-Group := "%{sql:SELECT groupname FROM radusergroup WHERE username='%{User-Name}' ORDER BY priority LIMIT 1}"
-            }
-        }
-        
+
         expiration
         logintime
-        
+
         pap
     }
-    
+
     authenticate {
         Auth-Type PAP {
             pap
         }
-        
-        Auth-Type MS-CHAP {
-            mschap
-        }
     }
-    
-    preacct {
-        preprocess
-        acct_unique
-        suffix
-        files
-    }
-    
+
     accounting {
-        detail
-        
-        # Accounting via SQL
         sql
-        
-        exec
-        attr_filter.accounting_response
     }
-    
+
     session {
         sql
     }
-    
+
     post-auth {
-        # Registrar autenticação bem-sucedida no SQL
         sql
-        
-        exec
-        
+
         Post-Auth-Type REJECT {
-            # Registrar falhas de autenticação
             sql
             attr_filter.access_reject
         }
-    }
-    
-    pre-proxy {
-    }
-    
-    post-proxy {
-        eap
     }
 }

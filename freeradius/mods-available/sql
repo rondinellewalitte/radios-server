@@ -1,24 +1,16 @@
 sql {
-    # Tipo de banco de dados
-    driver = "rlm_sql_postgresql"
+    driver = "postgresql"
     dialect = "postgresql"
-    
-    # Informações de conexão
+
     server = "postgres"
     port = 5432
-    login = "radius"
-    password = "RadiusSecurePass123!"
-    
-    # Nome do banco de dados
-    radius_db = "radius"
-    
-    # Se você quiser ler os clientes da tabela 'nas' (opcional)
+
+    login = "${env:POSTGRES_USER}"
+    password = "${env:POSTGRES_PASSWORD}"
+    radius_db = "${env:POSTGRES_DB}"
+
     read_clients = no
-    
-    # Tabelas do banco de dados
-    client_table = "nas"
-    
-    # Pool de conexões
+
     pool {
         start = 5
         min = 3
@@ -30,8 +22,7 @@ sql {
         idle_timeout = 60
         connect_timeout = 3.0
     }
-    
-    # Nomes das tabelas
+
     authcheck_table = "radcheck"
     authreply_table = "radreply"
     groupcheck_table = "radgroupcheck"
@@ -40,7 +31,4 @@ sql {
     acct_table1 = "radacct"
     acct_table2 = "radacct"
     postauth_table = "radpostauth"
-    
-    # Atributo de grupo
-    group_attribute = "SQL-Group"
 }
