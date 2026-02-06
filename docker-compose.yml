@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: postgres-radius
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -23,7 +22,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.freeradius
-    container_name: freeradius
     restart: unless-stopped
     environment:
       TZ: ${TZ:-America/Sao_Paulo}
@@ -32,26 +30,25 @@ services:
         condition: service_healthy
     networks:
       - radius-network
-    ports:
-      - "1812:1812/udp"
-      - "1813:1813/udp"
+    expose:
+      - "1812/udp"
+      - "1813/udp"
     healthcheck:
-      test: ["CMD", "radiusd", "-C"]
+      test: ["CMD", "freeradius", "-C"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   adminer:
     image: adminer:latest
-    container_name: adminer-radius
     restart: unless-stopped
     environment:
       ADMINER_DEFAULT_SERVER: postgres
       ADMINER_DESIGN: nette
     networks:
       - radius-network
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
 
 networks:
   radius-network:
