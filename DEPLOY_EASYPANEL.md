@@ -94,30 +94,53 @@ TZ=America/Sao_Paulo
 
 ## 🌐 Passo 4: Configurar Portas e Networking
 
-### 4.1 Expor portas UDP (importante!)
+### 4.1 Expor portas
 
-O EasyPanel pode ter limitações com portas UDP. Você tem duas opções:
+**IMPORTANTE**: Este docker-compose usa `expose` ao invés de `ports` para evitar conflitos no EasyPanel.
 
-**Opção A: Via EasyPanel UI**
-1. Vá em **Ports**
+Você precisa configurar as portas de uma das seguintes formas:
+
+**Opção A: Via Interface do EasyPanel (Recomendado)**
+
+1. No seu projeto, vá em **"Domains & Ports"** ou **"Networking"**
 2. Adicione as portas:
-   - `1812/udp` → RADIUS Authentication
-   - `1813/udp` → RADIUS Accounting
-   - `8080/tcp` → Adminer (interface web)
+   - FreeRADIUS Auth: `1812/udp` → `1812`
+   - FreeRADIUS Acct: `1813/udp` → `1813`
+   - Adminer: `8080/tcp` → `8080`
 
-**Opção B: Via iptables no servidor (mais confiável)**
+**Opção B: Via Firewall no Servidor (Alternativa)**
 
-Conecte via SSH ao servidor do EasyPanel:
+Se o EasyPanel não permitir configurar portas UDP pela interface, use SSH:
 
 ```bash
+# Conectar ao servidor
+ssh usuario@seu-servidor
+
 # Liberar portas UDP no firewall
-sudo ufw allow 1812/udp
-sudo ufw allow 1813/udp
-sudo ufw allow 8080/tcp
+sudo ufw allow 1812/udp comment "RADIUS Authentication"
+sudo ufw allow 1813/udp comment "RADIUS Accounting"
+sudo ufw allow 8080/tcp comment "Adminer"
 
 # Verificar regras
 sudo ufw status
 ```
+
+**Opção C: Adicionar `ports` Manualmente**
+
+Se preferir, você pode editar o `docker-compose.yml` no repositório e adicionar:
+
+```yaml
+freeradius:
+  ports:
+    - "1812:1812/udp"
+    - "1813:1813/udp"
+    
+adminer:
+  ports:
+    - "8080:8080"
+```
+
+⚠️ **Nota**: Isso pode causar conflitos se você tiver múltiplos projetos no EasyPanel usando as mesmas portas.
 
 ### 4.2 Obter IP público do servidor
 
@@ -175,8 +198,13 @@ Você deve ver 3 containers rodando:
 **Via Console do EasyPanel:**
 
 ```bash
-# Entrar no container do FreeRADIUS
-docker exec -it freeradius-server bash
+# Entrar no container do FreeRADIUS (nome pode variar)
+# Use docker-compose ao invés de docker exec diretamente:
+docker-compose exec freeradius bash
+
+# OU se precisar usar docker exec, encontre o nome:
+docker ps | grep freeradius
+# Depois: docker exec -it [nome-do-container] bash
 
 # Testar usuário de exemplo
 radtest admin "Admin@123" localhost 1812 testing123
@@ -261,8 +289,12 @@ Siga o guia `CONFIGURACAO_APS.md` e configure cada AP com:
 No Console do EasyPanel:
 
 ```bash
-# Conectar ao PostgreSQL
-docker exec -it radius-postgres psql -U radius -d radius
+# Conectar ao PostgreSQL usando docker-compose
+docker-compose exec postgres psql -U radius -d radius
+
+# OU se precisar usar docker exec:
+# docker ps | grep postgres
+# docker exec -it [nome-container-postgres] psql -U radius -d radius
 
 # Adicionar usuário
 INSERT INTO usuarios_empresa (username, nome_completo, email, departamento) 
@@ -349,7 +381,8 @@ docker-compose logs --tail=100 freeradius
 ### Verificar autenticações
 
 ```bash
-docker exec -it radius-postgres psql -U radius -d radius -c "
+# Usando docker-compose (recomendado)
+docker-compose exec postgres psql -U radius -d radius -c "
 SELECT username, reply, authdate, nasipaddress 
 FROM radpostauth 
 ORDER BY authdate DESC 
@@ -360,7 +393,8 @@ LIMIT 20;
 ### Sessões ativas
 
 ```bash
-docker exec -it radius-postgres psql -U radius -d radius -c "
+# Usando docker-compose (recomendado)
+docker-compose exec postgres psql -U radius -d radius -c "
 SELECT username, nasipaddress, acctstarttime, acctsessiontime 
 FROM radacct 
 WHERE acctstoptime IS NULL;
@@ -434,8 +468,21 @@ docker exec freeradius-server radiusd -XC
 docker-compose ps postgres
 
 # Testar conexão
-docker exec -it radius-postgres psql -U radius -d radius -c "SELECT 1;"
+docker-compose exec postgres psql -U radius -d radius -c "SELECT 1;"
 ```
+
+---
+
+## 📝 Nota Importante sobre Nomes de Containers
+
+Como removemos `container_name` para compatibilidade com EasyPanel, os containers terão nomes automáticos como:
+- `radios-server-postgres-1`
+- `radios-server-freeradius-1`
+- `radios-server-adminer-1`
+
+**Sempre prefira usar `docker-compose exec` ao invés de `docker exec`**, pois o docker-compose identifica os serviços automaticamente.
+
+Para mais detalhes, veja: [EASYPANEL_PORTS.md](EASYPANEL_PORTS.md)
 
 ---
 

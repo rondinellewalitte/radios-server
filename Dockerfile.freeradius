@@ -1,0 +1,18 @@
+FROM freeradius/freeradius-server:latest
+
+# Habilitar módulo SQL criando link simbólico
+RUN ln -s /etc/freeradius/mods-available/sql /etc/freeradius/mods-enabled/sql
+
+# Copiar configurações customizadas
+COPY freeradius/clients.conf /etc/freeradius/clients.conf
+COPY freeradius/mods-available/sql /etc/freeradius/mods-available/sql
+COPY freeradius/sites-available/default /etc/freeradius/sites-available/default
+
+# Garantir permissões corretas
+RUN chown -R freerad:freerad /etc/freeradius
+
+# Expor portas
+EXPOSE 1812/udp 1813/udp
+
+# Comando padrão (modo normal, não debug)
+CMD ["freeradius", "-f"]
