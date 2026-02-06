@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: radius-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-radius}
+      POSTGRES_USER: ${POSTGRES_USER:-radius}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-RadiusSecurePass123!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - radius-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radius}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  freeradius:
+    image: freeradius/freeradius-server:latest
+    container_name: freeradius-server
+    ports:
+      - "${RADIUS_AUTH_PORT:-1812}:1812/udp"
+      - "${RADIUS_ACCT_PORT:-1813}:1813/udp"
+    volumes:
+      - ./freeradius/clients.conf:/etc/freeradius/clients.conf
+      - ./freeradius/mods-available/sql:/etc/freeradius/mods-available/sql
+      - ./freeradius/sites-available/default:/etc/freeradius/sites-available/default
+    networks:
+      - radius-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+    # Remover o -X em produção para não logar tudo (performance)
+    # command: -X
+
+  adminer:
+    image: adminer:latest
+    container_name: radius-adminer
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    networks:
+      - radius-network
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: nette
+
+networks:
+  radius-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
